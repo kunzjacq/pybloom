@@ -73,6 +73,7 @@ For instance, it cab be given constraints on
 - total access size to test one element
 - maximum mask set size
 - maximum cascading
+
 as follows:
 
 ```optimiser(log2_storage_size=4,max_log2_access_size=6,max_log2_cascading=3, max_log2_mask_set_size=8)```
@@ -116,7 +117,10 @@ Bloom Filter comparison:
  practical vs optimal collision probability ratio: 5.5
 ```
 
-one can additionally impose a constraint on the word size:
+Therefore one sees that a false positive probability of 2.522e-03 can be obtained with
+these constraints, and the settings to obtain this probability are given.
+
+One can additionally impose a constraint on the word size:
 
 ```optimiser(log2_storage_size=6, max_log2_access_size=8, max_log2_filter_size=5, max_log2_mask_set_size=8,max_log2_cascading=4)```
 
@@ -137,7 +141,7 @@ and
 ```optimiser(log2_storage_size=7,max_log2_access_size=6,max_log2_cascading=3, max_log2_mask_set_size=8,max_log2_mask_storage_bit_size=13, max_log2_filterset_size=7)```
 
 where a constraint on the total filter set size was added: it cannot be larger
-than 128 bits. As a result, the f.p. rate climbs to 8.7e-8.
+than 128 bits. As a result, the false positive rate climbs to 8.7e-8.
 
 see optimiser parameter definition for general usage.
 
