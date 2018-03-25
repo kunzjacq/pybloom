@@ -1,4 +1,4 @@
-## Script to compute the false positive probability of Bloom filter variants
+# Script to compute the false positive probability of Bloom filter variants
 
 Based on ideas from the publication
 
@@ -26,12 +26,13 @@ However cascading does *not* enable to beat larger word size when there is no
 limitation on mask set size (i.e. when masks are generated pseudo-randomly from
 the inserted values).
 
-### computing the false positive rate of a fixed structure
+## Computing the false positive rate of a fixed structure
 
 A structure with small bloom filters of 64-bits, each containing on
 average 4 values, with masks of hamming weight 6, and a set of masks of
 size 2^16 (thus requiring 16 hashed bits from the input value for mask
 selection), one gets a collision probability of 0.37%, as is computed by
+
 ```local_bf.false_positive_proba(bloom_size=64, mask_weight=6, avg_loading=4, log2_mask_set_size=16, cascading_factor=1)```
 
 The mask table has 2^16 values of 64 bits: it uses 2^19 bytes.
@@ -48,6 +49,7 @@ should always be equivalent to infinity.
 
 A cascade 4 of small structures of size 16, each with 2^8 masks of hamming weight 3
 has false positive rate is 1.05%, as computed by
+
 ```local_bf.false_positive_proba(bloom_size=16, mask_weight=3, avg_loading=4, log2_mask_set_size=8, cascading_factor=4)```
 
 This structure requires 4\*8 = 32 hashed bits per value for mask selection;
@@ -58,26 +60,31 @@ used is different.
 An optimiser is provided to find the structure with lowest false positive probability
 under constraints.
 
-### Using the optimizer
+## Using the optimizer
 
 Constraint on total storage size per value, total access size to check one
 element, mask set size and cascading:
+
 ```local_bf.optimiser(log2_storage_size=4,max_log2_access_size=6,max_log2_cascading=3, max_log2_mask_set_size=8)```
 
 one can additionally impose a constraint on the word size:
+
 ```local_bf.optimiser(log2_storage_size=6, max_log2_access_size=8, max_log2_filter_size=5, max_log2_mask_set_size=8,max_log2_cascading=4)```
 
 or one can impose a constraint on the mask set storage size (log, in bits):
+
 ```local_bf.optimiser(log2_storage_size=6, max_log2_access_size=8, max_log2_filter_size=6, max_log2_mask_set_size=8, max_log2_cascading=2,max_log2_mask_storage_bit_size=14)```
 
 to obtain very low false positive rates, it is often useful to enable a filter
 set size larger than the storage size allocated per element. Compare:
+
 ```local_bf.optimiser(log2_storage_size=7,max_log2_access_size=6,max_log2_cascading=3, max_log2_mask_set_size=8,max_log2_mask_storage_bit_size=13)```
 
 which yields a 512-bit structure with f.p. rate of 1.275e-9 with finite masks,
 and average loading 4,
 
 and
+
 ```local_bf.optimiser(log2_storage_size=7,max_log2_access_size=6,max_log2_cascading=3, max_log2_mask_set_size=8,max_log2_mask_storage_bit_size=13, max_log2_filterset_size=7)```
 
 where a constraint on the total filter set size was added: it cannot be larger
@@ -87,7 +94,7 @@ see optimiser parameter definition for general usage.
 
 The code uses of the following result:
 the limit of the log-probability that there are u values in a filter after
-n elements are inserted at random into m filters, n -> infinity, n/m = a is constant,
+n elements are inserted at random into m filters when n tends to infinity and n/m = a is constant,
 is
 -log(u!) - a + u * log(a)
 
