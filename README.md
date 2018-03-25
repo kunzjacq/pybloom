@@ -68,11 +68,11 @@ under constraints.
 The optimiser takes as input constraints on for a filter and outputs a set of settings
 satisfying the constraints and with the lowest possible false positive rate.
 
-For instance, it cab be given constraints on
-- total storage size per value
-- total access size to test one element
-- maximum mask set size
-- maximum cascading
+For instance, it can be given constraints on
+- total storage size per value (16 bits)
+- total access size to test one element (64 bits)
+- maximum mask set size (256 masks)
+- maximum cascading (8 levels)
 
 as follows:
 
@@ -145,11 +145,13 @@ than 128 bits. As a result, the false positive rate climbs to 8.7e-8.
 
 see optimiser parameter definition for general usage.
 
+### Remark about formulas in the code
+
 The code uses of the following result:
 the limit of the log-probability that there are u values in a filter after
 n elements are inserted at random into m filters when n tends to infinity and n/m = a is constant,
 is
 -log(u!) - a + u * log(a)
 
-this is obtained by a Taylor development of binomial(n,u) (1/m)^u (1-1/m)^n-u
-when m tends to infinity with m = a*n.
+this is obtained by a Taylor development of binomial(n,u) (1/m)^u (1-1/m)^(n-u)
+when m tends to infinity and m = a\*n.
