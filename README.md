@@ -1,4 +1,4 @@
-# Computation of False Positive Probabilty for Bloom filter variants
+# Computation of False Positive Probability for Bloom filter variants
 
 This project is based on ideas from the publication
 
