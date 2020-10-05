@@ -8,7 +8,7 @@ The explanations below assume a working knowledge of Bloom filters. Bloom filter
 
 Here, we consider structures are collections of small Bloom filters where elements to be stored are associed to a particular filter by a hash function. An element is then tested to belong to the structure by testing it against the filter associated to it. For instance, on may want to use a collection of 512-bit filters to make each filter fit in a cache line. 
  
-As a second optimization step, each Bloom filter may be implemented as several independent, smaller filters. A 512-bit filter may for instance be implemented as 8 64-bit filters. Sufficently small filters are indeed amenable to the following simplification of the computation of the bit positions corresponding to an element to test or insert: pre-computed //bit masks// with some fixed hamming weight are chosen once and for all and stored in a table; then, when an element is inserted or tested,  a mask index in the table is chosen pseudorandomly. As a result, all bits to set or test corresponding to the element processed are chosen in one operation, in contrast to the usual Bloom filter algorithm where each bit is chose with its own pseudorandom function.
+As a second optimization step, each Bloom filter may be implemented as several independent, smaller filters. A 512-bit filter may for instance be implemented as 8 64-bit filters. Sufficently small filters are indeed amenable to the following simplification of the computation of the bit positions corresponding to an element to test or insert: pre-computed *bit masks* with some fixed hamming weight are chosen once and for all and stored in a table; then, when an element is inserted or tested,  a mask index in the table is chosen pseudorandomly. As a result, all bits to set or test corresponding to the element processed are chosen in one operation, in contrast to the usual Bloom filter algorithm where each bit is chose with its own pseudorandom function.
 
 When using precomputed masks for element insertion and test, dividing a filter into several smaller filters, or 'cascading', enables to simulate a larger mask set than what would be possible without cascading. For instance, with mask set of size 2<sup>8</sup>, a filter with cascading of 2 generally has a f.p. probability almost as low as a filter with no cascading, words of double size, double hamming weight, and mask set of size (2<sup>8</sup>)<sup>2</sup> = 2<sup>16</sup>. It is however worth remembering that a k-cascaded Bloom filter with a mask set of size m always has worse f.p. probability than its non-cascaded counterpart where bit positions are generated pseudo-randomly from the inserted values, or even than a non-cascaded filter with a mask set of size m<sup>k</sup>.
 
@@ -18,7 +18,7 @@ All code examples assume the module 'bloom' is imported at toplevel with:
 
 ```from bloom import *```
 
-A structure with 64-bit Bloom filters, each containing on average 4 values, with masks of hamming weight 6, and a set of masks of size 2<sup>16</sup> (thus requiring 16 hashed bits from the input value for mask selection), has a f.p. probability of 0.37%, as computed by
+A structure using 64-bit Bloom filters, each containing on average 4 values, with masks of hamming weight 6, and a set of masks of size 2<sup>16</sup> (thus requiring 16 hashed bits from the input value for mask selection), has a f.p. probability of 0.37%, as computed by
 
 ```false_positive_proba(bloom_size=64, mask_weight=6, avg_loading=4, log2_mask_set_size=16, cascading_factor=1)```
 
@@ -26,19 +26,25 @@ Since the mask table contains 2<sup>16</sup> values of 64 bits, it uses 2<sup>19
 
 `false_positive_proba` returns 4 probabilities, the most interesting one being the last one (compounded probability with cascading, and finite mask set). See function documentation for more details.
 
-There is an implicit parameter `F` that limits the maximum number of values in the filter to its average value avg_loading plus F times its standard deviation (which is avg_loading<sup>1/2</sup>). Values larger than this threshold are not taken into account in the collision probability computation. `F` defaults to 10 which should always be equivalent to infinity for practical purposes.
-
-A cascade of 4 filters of size 16, each with 2<sup>8</sup> masks of hamming weight 3 has false positive rate is 1.05%, as computed by
+A cascade of 4 filters of size 16, each with 2<sup>8</sup> masks of hamming weight 3 has false positive rate equal to 1.05%, as computed by
 
 ```false_positive_proba(bloom_size=16, mask_weight=3, avg_loading=4, log2_mask_set_size=8, cascading_factor=4)```
 
 This structure requires 4\*8 = 32 hashed bits per value for mask selection; the mask table is composed of 2<sup>8</sup> 16-bit words, i.e. 2<sup>10</sup> bytes. The same table can be reused for the different cascaded filters, as long as the randomness used is different.
 
+To compute the false positive probability, `false_positive_proba` only needs to model the behavior of one Bloom filter or one set of smaller cacaded Bloom filters under a variable load. Indeed, if n elements are inserted at random into m filters, the average number of elements in a filter set is a = n/m and the probability to have u elements in the filter is 
+
+p = binomial(n,u) (1/m)<sup>u</sup> (1-1/m)<sup>(n-u)</sup>.
+
+For large n, log(p) tends to -log(u!) - a + u * log(a) (See end of this document for more details on this approximation).
+
+`false_positive_proba` has an optional parameter F that defines the maximum number of values in the filter that is considered during computations. This maximum number U is a + F * s, where s=a<sup>1/2</sup> is the loading standard deviation. Values larger than U are not taken into account in the f.p. probability computation. F defaults to 10 which should always be equivalent to infinity for practical purposes.
+
 An optimiser is provided to find the structure with lowest false positive probability under constraints.
 
 ## Using the optimizer
 
-Given constraints on a filter, the optimizer outputs a set of settings satisfying the constraints yielding the lowest false positive rate.
+Given constraints on a filter, or on a filter set composed of several smaller cascaded Bloom filters, the optimizer outputs a set of settings satisfying the constraints yielding the lowest false positive rate.
 
 For instance, it can be given constraints on
 
@@ -104,28 +110,28 @@ See optimiser parameter definition for general usage.
 
 ### Considerations about the way to obtain efficient constructs
 
-To obtain very low false positive rates, it is often useful to enable a filter set size larger than the storage size allocated per element. Here the "filter set" refers to the collection of small filters assembled through cascading to form a larger structure analogous to a plain Bloom filter.
+To obtain low false positive rates, it is often useful to enable a filter set size larger than the storage size allocated per element. (remember that "filter set" refers to a collection of smaller filters assembled through cascading to form a larger structure analogous to a plain Bloom filter).
 
 Compare:
 
 ```optimiser(log2_storage_size=7,max_log2_access_size=6,max_log2_cascading=3, max_log2_mask_set_size=8,max_log2_mask_storage_bit_size=13)```
 
-which yields a 512-bit structure with f.p. rate of 1.275e-9 with finite masks, and average loading 4, and
+which yields a 512-bit filter set with f.p. rate of 1.275e-9 with finite masks, and average loading (=average number of elements stored in a filter set) of 4 (which is equal to the filter set size divided by the storage size per element), and
 
 ```optimiser(log2_storage_size=7,max_log2_access_size=6,max_log2_cascading=3, max_log2_mask_set_size=8,max_log2_mask_storage_bit_size=13, max_log2_filterset_size=7)```
 
-where a constraint on the total filter set size was added: it cannot be larger than 128 bits. As a result, the false positive rate climbs to 8.7e-8: this is a 68 times higher f.p. probability, for the same storage size per element.
+where a constraint on the filter set size was added: it cannot be larger than 128 bits. As a result, the false positive rate climbs to 8.7e-8: **this is a 68 times higher f.p. probability, for the same storage size per element.** The average loading factor is now 1.
 
-This behavior is due to the fact that smaller filter sets do not enable a good averaging of the number of values inserted into them. As a result, there is a significant probability that the filter set is overcrowded (because of the random behavior of the hash function that distributes elements between filter sets) and that it has high f.p. probability as a result. 
+The degraded behavior of smaller filter sets is due to the fact that they do not enable a good averaging of the number of values inserted into them. As a result, there is a significant probability that a filter set is overcrowded (because of the random behavior of the hash function that distributes elements between filter sets) and that as a result, it has high f.p. probability. 
 
 ### Remark about formulas in the code
 
-The code uses of the following result: the limit of the log-probability that there are `u` values in a filter after `n` elements are inserted at random into m filters when `n` tends to infinity and `n/m = a` is constant, is
+The code uses of the following result: the limit of the log-probability that there are u values in a filter after n elements are inserted at random into m filters when n tends to infinity and n/m = a is constant, is
 
-`-log(u!) - a + u * log(a)`
+-log(u!) - a + u \* log(a).
 
-this is obtained by a Taylor development of 
+This is obtained by a Taylor development of 
 
-`binomial(n,u) (1/m)^u (1-1/m)^(n-u)`
+binomial(n,u) (1/m)<sup>u</sup> (1-1/m)<sup>(n-u)</sup>
 
-when `n` tends to infinity and `m = a * n`.
+when n tends to infinity and m = a \* n.
