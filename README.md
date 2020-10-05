@@ -32,13 +32,15 @@ A cascade of 4 filters of size 16, each with 2<sup>8</sup> masks of hamming weig
 
 This structure requires 4\*8 = 32 hashed bits per value for mask selection; the mask table is composed of 2<sup>8</sup> 16-bit words, i.e. 2<sup>10</sup> bytes. The same table can be reused for the different cascaded filters, as long as the randomness used is different.
 
-To compute the false positive probability, `false_positive_proba` only needs to model the behavior of one Bloom filter or one set of smaller cacaded Bloom filters under a variable load. Indeed, if n elements are inserted at random into m filters, the average number of elements in a filter set is a = n/m and the probability to have u elements in the filter is 
+To compute the false positive probability, `false_positive_proba` only needs to model the behavior of one Bloom filter or one set of smaller cascaded Bloom filters under a variable load. Indeed, if n elements are inserted at random into m filters, the average number of elements in a filter set is a = n/m and the probability to have u elements in the filter is 
 
 p = binomial(n,u) (1/m)<sup>u</sup> (1-1/m)<sup>(n-u)</sup>.
 
-For large n, log(p) tends to -log(u!) - a + u * log(a) (See end of this document for more details on this approximation).
+For large n, log(p) tends to -log(u!) - a + u * log(a).
 
-`false_positive_proba` has an optional parameter F that defines the maximum number of values in the filter that is considered during computations. This maximum number U is a + F * s, where s=a<sup>1/2</sup> is the loading standard deviation. Values larger than U are not taken into account in the f.p. probability computation. F defaults to 10 which should always be equivalent to infinity for practical purposes.
+(See end of this document for more details on this approximation.)
+
+`false_positive_proba` has an optional parameter F that defines the maximum number of values in the filter that is considered during computations. This maximum number U is defined as a + F * s, where s=a<sup>1/2</sup> is the loading standard deviation. Values larger than U are not taken into account in the f.p. probability computation. F defaults to 10 which should always be equivalent to infinity for practical purposes.
 
 An optimiser is provided to find the structure with lowest false positive probability under constraints.
 
