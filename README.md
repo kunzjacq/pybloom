@@ -4,11 +4,11 @@ This project is based on ideas from the publication
 
 '[Cache-, Hash- and Space-Efficient Bloom Filters](http://algo2.iti.kit.edu/documents/cacheefficientbloomfilters-jea.pdf)', F. Putze, P. Sanders and J. Singler
 
-The explanations below assume a working knowledge of Bloom filters. Bloom filters enable to check whether elements belong to a set, with no false negatives and a computable false positive (f.p.) probability.  For a given f.p. probability, Bloom filters storage requirements as a function of the set size are modest. However, testing an element in a Bloom filter requires several memory reads at independent, pseudorandom positions in the structure. This makes Bloom filter implementations rather cache-unfriendly and slow. Alternate structures where memory accesses are grouped together more, at the expense of the memory requirements or f.p. probability, are therefore desirable for the uses where speed matters most. 
+The explanations below assume a working knowledge of Bloom filters. Bloom filters enable to check whether elements belong to a set, with no false negatives and a computable false positive (f.p.) probability.  For a given f.p. probability, Bloom filters storage requirements as a function of the set size are modest. However, testing an element in a Bloom filter requires several memory reads at independent, pseudorandom positions in the structure. This makes Bloom filter implementations rather cache-unfriendly and slow. Alternate structures where memory accesses are grouped together more, at the expense of the memory requirements or f.p. probability, are therefore desirable for the uses where speed matters most.
 
-Here, we consider structures are collections of small Bloom filters where elements to be stored are associed to a particular filter by a hash function. An element is then tested to belong to the structure by testing it against the filter associated to it. For instance, on may want to use a collection of 512-bit filters to make each filter fit in a cache line. 
- 
-As a second optimization step, each Bloom filter may be implemented as several independent, smaller filters. A 512-bit filter may for instance be implemented as 8 64-bit filters. Sufficently small filters are indeed amenable to the following simplification of the computation of the bit positions corresponding to an element to test or insert: pre-computed *bit masks* with some fixed hamming weight are chosen once and for all and stored in a table; then, when an element is inserted or tested,  a mask index in the table is chosen pseudorandomly. As a result, all bits to set or test corresponding to the element processed are chosen in one operation, in contrast to the usual Bloom filter algorithm where each bit is chose with its own pseudorandom function.
+Here, we consider structures are collections of small Bloom filters where elements to be stored are associed to a particular filter by a hash function. An element is then tested to belong to the structure by testing it against the filter associated to it. For instance, on may want to use a collection of 512-bit filters to make each filter fit in a cache line.
+
+As a second optimization step, each Bloom filter may be implemented as several independent, smaller filters. A 512-bit filter may for instance be implemented as 8 64-bit filters. Sufficently small filters are indeed amenable to the following simplification of the computation of the bit positions corresponding to an element to test or insert: pre-computed *bit masks* with some fixed hamming weight are chosen once and for all and stored in a table; then, when an element is inserted or tested,  a mask index in the table is chosen pseudorandomly. As a result, all bits to set or test corresponding to the element processed are chosen in one operation, in contrast to the usual Bloom filter algorithm where each bit is chosen with its own pseudorandom function.
 
 When using precomputed masks for element insertion and test, dividing a filter into several smaller filters, or 'cascading', enables to simulate a larger mask set than what would be possible without cascading. For instance, with mask set of size 2<sup>8</sup>, a filter with cascading of 2 generally has a f.p. probability almost as low as a filter with no cascading, words of double size, double hamming weight, and mask set of size (2<sup>8</sup>)<sup>2</sup> = 2<sup>16</sup>. It is however worth remembering that a k-cascaded Bloom filter with a mask set of size m always has worse f.p. probability than its non-cascaded counterpart where bit positions are generated pseudo-randomly from the inserted values, or even than a non-cascaded filter with a mask set of size m<sup>k</sup>.
 
@@ -22,25 +22,25 @@ A structure using 64-bit Bloom filters, each containing on average 4 values, wit
 
 ```false_positive_proba(bloom_size=64, mask_weight=6, avg_loading=4, log2_mask_set_size=16, cascading_factor=1)```
 
-Since the mask table contains 2<sup>16</sup> values of 64 bits, it uses 2<sup>19</sup> bytes of storage.
+Since the mask table contains 2<sup>16</sup> 64-bit values, it uses 2<sup>19</sup> bytes of storage.
 
 `false_positive_proba` returns 4 probabilities, the most interesting one being the last one (compounded probability with cascading, and finite mask set). See function documentation for more details.
 
-A cascade of 4 filters of size 16, each with 2<sup>8</sup> masks of hamming weight 3 has false positive rate equal to 1.05%, as computed by
+A cascade of 4 16-bit filters, each with 2<sup>8</sup> masks of hamming weight 3 has false positive rate equal to 1.05%, as computed by
 
 ```false_positive_proba(bloom_size=16, mask_weight=3, avg_loading=4, log2_mask_set_size=8, cascading_factor=4)```
 
-This structure requires 4\*8 = 32 hashed bits per value for mask selection; the mask table is composed of 2<sup>8</sup> 16-bit words, i.e. 2<sup>10</sup> bytes. The same table can be reused for the different cascaded filters, as long as the randomness used is different.
+This structure requires 4 × 8 = 32 hashed bits per value for mask selection; the mask table is composed of 2<sup>8</sup> 16-bit words, i.e. 2<sup>10</sup> bytes. The same table can be reused for the different cascaded filters, as long as the randomness used for mask selection in each filter is different.
 
-To compute the false positive probability, `false_positive_proba` only needs to model the behavior of one Bloom filter or one set of smaller cascaded Bloom filters under a variable load. Indeed, if n elements are inserted at random into m filters, the average number of elements in a filter set is a = n/m and the probability to have u elements in the filter is 
+To compute the false positive probability, `false_positive_proba` only needs to model the behavior of one Bloom filter or one set of smaller cascaded Bloom filters under a variable load. Indeed, if *n* elements are inserted at random into m filters, the average number of elements in a filter set is *a = n/m* and the probability to have *u* elements in the filter is
 
-p = binomial(n,u) (1/m)<sup>u</sup> (1-1/m)<sup>(n-u)</sup>.
+*p = binomial(n,u) (1/m)<sup>u</sup> (1-1/m)<sup>(n-u)</sup>.*
 
-For large n, log(p) tends to -log(u!) - a + u * log(a).
+For large *n*, *log(p)* tends to *-log(u!) - a + u * log(a)*.
 
 (See end of this document for more details on this approximation.)
 
-`false_positive_proba` has an optional parameter F that defines the maximum number of values in the filter that is considered during computations. This maximum number U is defined as a + F * s, where s=a<sup>1/2</sup> is the loading standard deviation. Values larger than U are not taken into account in the f.p. probability computation. F defaults to 10 which should always be equivalent to infinity for practical purposes.
+`false_positive_proba` has an optional parameter *F* that defines the maximum number of values in the filter that is considered during computations. This maximum number *U* is defined as *a + F * s*, where *s = a<sup>1/2</sup>* is the loading standard deviation. Values larger than *U* are not taken into account in the f.p. probability computation. *F* defaults to 10 which should always be equivalent to infinity for practical purposes.
 
 An optimiser is provided to find the structure with lowest false positive probability under constraints.
 
@@ -124,16 +124,16 @@ which yields a 512-bit filter set with f.p. rate of 1.275e-9 with finite masks, 
 
 where a constraint on the filter set size was added: it cannot be larger than 128 bits. As a result, the false positive rate climbs to 8.7e-8: **this is a 68 times higher f.p. probability, for the same storage size per element.** The average loading factor is now 1.
 
-The degraded behavior of smaller filter sets is due to the fact that they do not enable a good averaging of the number of values inserted into them. As a result, there is a significant probability that a filter set is overcrowded (because of the random behavior of the hash function that distributes elements between filter sets) and that as a result, it has high f.p. probability. 
+The degraded behavior of smaller filter sets is due to the fact that they do not enable a good averaging of the number of values inserted into them. As a result, there is a significant probability that a filter set is overcrowded (because of the random behavior of the hash function that distributes elements between filter sets) and that as a result, it has high f.p. probability.
 
 ### Remark about formulas in the code
 
-The code uses of the following result: the limit of the log-probability that there are u values in a filter after n elements are inserted at random into m filters when n tends to infinity and n/m = a is constant, is
+The code uses of the following result: the limit of the log-probability that there are *u* values in a filter after *n* elements are inserted at random into *m* filters when *n* tends to infinity and *n/m = a* is constant, is
 
--log(u!) - a + u \* log(a).
+*-log(u!) - a + u × log(a).*
 
-This is obtained by a Taylor development of 
+This is obtained by a Taylor development of
 
-binomial(n,u) (1/m)<sup>u</sup> (1-1/m)<sup>(n-u)</sup>
+*binomial(n,u) (1/m)<sup>u</sup> (1-1/m)<sup>(n-u)</sup>*
 
-when n tends to infinity and m = a \* n.
+when *n* tends to infinity and *m = a × n*.
