@@ -1,6 +1,6 @@
 # Computation of False Positive Probability for Bloom filter variants
 
-This project is based on ideas from the publication '[Cache-, Hash- and Space-Efficient Bloom Filters](http://algo2.iti.kit.edu/documents/cacheefficientbloomfilters-jea.pdf)', F. Putze, P. Sanders and J. Singler
+This project is based on ideas from the publication '[Cache-, Hash- and Space-Efficient Bloom Filters](http://algo2.iti.kit.edu/documents/cacheefficientbloomfilters-jea.pdf)', by F. Putze, P. Sanders and J. Singler.
 
 Bloom filters enable to check whether elements belong to a set, with no false negatives and a computable false positive (f.p.) probability; see for instance https://en.wikipedia.org/wiki/Bloom_filter. For a given f.p. probability, Bloom filters storage requirements as a function of the set size are modest: the storage per elements in bits, *a*, and the f.p. probability, *p*, are related by *-ln(p) ≈ a × ln(2)<sup>2</sup> ≈ 0.5 × a*. However, testing an element in a Bloom filter requires several memory reads at independent, pseudorandom positions in the structure. This makes Bloom filter implementations rather cache-unfriendly and slow. Alternate structures where memory accesses are grouped together, at the expense of the memory requirements or f.p. probability, are therefore desirable for the uses where speed matters most.
 
@@ -14,7 +14,7 @@ As a second optimization step, each Bloom filter may be approximated by several 
 The insertion (resp. test) of an element is done by inserting (resp. testing) the element in each smaller filter, using (pseudo-)independently computed bit positions.
 A 512-bit filter may for instance be approximated by 8 64-bit filters. Formally, the set represented by the collection of small filters is the intersection of the sets corresponding to each individual filter.
 
-The performance of such set of smaller filters in terms of f.p. probability is worse than with a monolithic Bloom filter of the same size. Sufficently small filters are nevertheless amenable to a simplification of the implementation:
+The f.p. probability of such set of smaller filters is worse than with a monolithic Bloom filter of the same size. Sufficently small filters are nevertheless amenable to a simplification of their implementation:
 pre-computed *bit masks* with some fixed hamming weight can be chosen once and for all and stored in a table; then, when an element is inserted or tested, a mask index in the table is chosen pseudorandomly. As a result, all bits to set or test corresponding to the element processed are chosen in one operation. When a filter fits into a machine word, operations on a filter reduce to simple logical operations. When several small filters are used, the same mask table can be used for all filters, with mask indexes computed (pseudo-) independently for different filters.
 
 To sum up, a set of small filters trades some f.p. probability in exchange for a simpler and faster implementation, with more predictible memory accesses.
@@ -40,14 +40,6 @@ A cascade of 4 16-bit filters, each with 2<sup>8</sup> masks of hamming weight 3
 ```false_positive_proba(bloom_size=16, mask_weight=3, avg_loading=4, log2_mask_set_size=8, cascading_factor=4)```
 
 This structure requires 4 × 8 = 32 hashed bits per value for mask selection; the mask table is composed of 2<sup>8</sup> 16-bit words, i.e. 2<sup>10</sup> bytes. The same table can be reused for the different cascaded filters, as long as the randomness used for mask selection in each filter is different.
-
-To compute the false positive probability, `false_positive_proba` only needs to model the behavior of one Bloom filter or one set of smaller cascaded Bloom filters under a variable load. Indeed, if *n* elements are inserted at random into m filters, the average number of elements in a filter set is *a = n/m* and the probability to have *u* elements in the filter is
-
-*p = binomial(n,u) (1/m)<sup>u</sup> (1-1/m)<sup>(n-u)</sup>.*
-
-For large *n*, *log(p)* tends to *-log(u!) - a + u * log(a)*.
-
-(See end of this document for more details on this approximation.)
 
 `false_positive_proba` has an optional parameter *F* that defines the maximum number of values in the filter that is considered during computations. This maximum number *U* is defined as *a + F * s*, where *s = a<sup>1/2</sup>* is the loading standard deviation. Values larger than *U* are not taken into account in the f.p. probability computation. *F* defaults to 10 which should always be equivalent to infinity for practical purposes.
 
@@ -129,20 +121,18 @@ Compare:
 
 which yields a 512-bit filter set with f.p. rate of 1.275e-9 with finite masks, and average loading (=average number of elements stored in a filter set) of 4 (which is equal to the filter set size divided by the storage size per element), and
 
-```optimiser(log2_storage_size=7,max_log2_access_size=6,max_log2_cascading=3, max_log2_mask_set_size=8,max_log2_mask_storage_bit_size=13, max_log2_filterset_size=7)```
+```optimiser(log2_storage_size=7,max_log2_access_size=6,max_log2_cascading=3, max_log2_mask_set_size=8,max_log2_mask_storage_bit_size=13,max_log2_filterset_size=7)```
 
 where a constraint on the filter set size was added: it cannot be larger than 128 bits. As a result, the false positive rate climbs to 8.7e-8: **this is a 68 times higher f.p. probability, for the same storage size per element.** The average loading factor is now 1.
 
-The degraded behavior of smaller filter sets is due to the fact that they do not enable a good averaging of the number of values inserted into them. As a result, there is a significant probability that a filter set is overcrowded (because of the random behavior of the hash function that distributes elements between filter sets) and that as a result, it has high f.p. probability.
+The degraded behavior of filter sets is due to the fact that they do not enable a good averaging of the number of values inserted into them. As a result, there is a significant probability that a filter set is overcrowded (because of the random behavior of the hash function that distributes elements between filter sets) and that as a result, it has high f.p. probability. When using cascading, several small filters approximate a larger Bloom filter. In a filter set, since the same number of elements is inserted in every individal filter, they may be all simultaneously overcrowded, which is bad for the overall false positive probability.
 
-### Remark about formulas in the code
+### False positive probability computation
 
-The code uses of the following result: the limit of the log-probability that there are *u* values in a filter after *n* elements are inserted at random into *m* filters when *n* tends to infinity and *n/m = a* is constant, is
+To compute the false positive probability, `false_positive_proba` only needs to model the behavior of one Bloom filter or one set of smaller cascaded Bloom filters under a variable load. Indeed, if *n* elements are inserted at random into m filters, the average number of elements in a filter set is *a = n/m* and the probability to have *u* elements in the filter is
 
-*-log(u!) - a + u × log(a).*
+*p = binomial(n,u) (1/m)<sup>u</sup> (1-1/m)<sup>(n-u)</sup>.*
 
-This is obtained by a Taylor development of
+For large *n*, *log(p)* tends to *-log(u!) - a + u * log(a)*.
 
-*binomial(n,u) (1/m)<sup>u</sup> (1-1/m)<sup>(n-u)</sup>*
-
-when *n* tends to infinity and *m = a × n*.
+More precisely, this is the limit of the log-probability that there are *u* values in a filter after *n* elements are inserted at random into *m* filters when *n* tends to infinity and *n/m = a* is constant. This is obtained by a Taylor development of *log(p)* starting with the exact formula above, when *n* tends to infinity and *m = a × n*.
