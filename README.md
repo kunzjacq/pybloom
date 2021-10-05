@@ -1,10 +1,8 @@
 # Computation of False Positive Probability for Bloom filter variants
 
-This project is based on ideas from the publication
+This project is based on ideas from the publication '[Cache-, Hash- and Space-Efficient Bloom Filters](http://algo2.iti.kit.edu/documents/cacheefficientbloomfilters-jea.pdf)', F. Putze, P. Sanders and J. Singler
 
-'[Cache-, Hash- and Space-Efficient Bloom Filters](http://algo2.iti.kit.edu/documents/cacheefficientbloomfilters-jea.pdf)', F. Putze, P. Sanders and J. Singler
-
-Bloom filters (see for instance https://en.wikipedia.org/wiki/Bloom_filter) enable to check whether elements belong to a set, with no false negatives and a computable false positive (f.p.) probability.  For a given f.p. probability, Bloom filters storage requirements as a function of the set size are modest (the storage per elements in bits, *a*, and the f.p. probability, *p*, are related by *-ln(p) = a × ln(2)<sup>2</sup> ≈ 0.5 × a*). However, testing an element in a Bloom filter requires several memory reads at independent, pseudorandom positions in the structure. This makes Bloom filter implementations rather cache-unfriendly and slow. Alternate structures where memory accesses are grouped together, at the expense of the memory requirements or f.p. probability, are therefore desirable for the uses where speed matters most.
+Bloom filters enable to check whether elements belong to a set, with no false negatives and a computable false positive (f.p.) probability; see for instance https://en.wikipedia.org/wiki/Bloom_filter. For a given f.p. probability, Bloom filters storage requirements as a function of the set size are modest: the storage per elements in bits, *a*, and the f.p. probability, *p*, are related by *-ln(p) ≈ a × ln(2)<sup>2</sup> ≈ 0.5 × a*. However, testing an element in a Bloom filter requires several memory reads at independent, pseudorandom positions in the structure. This makes Bloom filter implementations rather cache-unfriendly and slow. Alternate structures where memory accesses are grouped together, at the expense of the memory requirements or f.p. probability, are therefore desirable for the uses where speed matters most.
 
 ## Better memory locality with a hash table of Bloom filters
 
@@ -16,7 +14,7 @@ As a second optimization step, each Bloom filter may be approximated by several 
 The insertion (resp. test) of an element is done by inserting (resp. testing) the element in each smaller filter, using (pseudo-)independently computed bit positions.
 A 512-bit filter may for instance be approximated by 8 64-bit filters. Formally, the set represented by the collection of small filters is the intersection of the sets corresponding to each individual filter.
 
-The performance of such set of smaller filters in terms of f.p. probability for a given storage size per element is worse than with a monolithic Bloom filter of the same size. Sufficently small filters are nevertheless amenable to a simplification of the implementation:
+The performance of such set of smaller filters in terms of f.p. probability is worse than with a monolithic Bloom filter of the same size. Sufficently small filters are nevertheless amenable to a simplification of the implementation:
 pre-computed *bit masks* with some fixed hamming weight can be chosen once and for all and stored in a table; then, when an element is inserted or tested, a mask index in the table is chosen pseudorandomly. As a result, all bits to set or test corresponding to the element processed are chosen in one operation. When a filter fits into a machine word, operations on a filter reduce to simple logical operations. When several small filters are used, the same mask table can be used for all filters, with mask indexes computed (pseudo-) independently for different filters.
 
 To sum up, a set of small filters trades some f.p. probability in exchange for a simpler and faster implementation, with more predictible memory accesses.
