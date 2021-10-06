@@ -125,9 +125,9 @@ which yields a 512-bit filter set with f.p. rate of 1.275e-9 with finite masks, 
 
 where a constraint on the filter set size was added: it cannot be larger than 128 bits. As a result, the false positive rate climbs to 8.7e-8: **this is a 68 times higher f.p. probability, for the same storage size per element.** The average loading factor is now 1.
 
-The degraded behavior of filter sets is due to the fact that they do not enable a good averaging of the number of values inserted into them. As a result, there is a significant probability that a filter set is overcrowded (because of the random behavior of the hash function that distributes elements between filter sets) and that as a result, it has high f.p. probability. When using cascading, several small filters approximate a larger Bloom filter. In a filter set, since the same number of elements is inserted in every individal filter, they may be all simultaneously overcrowded, which is bad for the overall false positive probability.
+The degraded behavior of filter sets is due to the fact that they do not enable a good averaging of the number of values inserted into them. As a result, there is a significant probability that a filter set is overcrowded (because of the random behavior of the hash function that distributes elements between filter sets). Since the same number of elements is inserted in every individal filter of the filter set, they are all simultaneously overcrowded, which is bad for the overall false positive probability.
 
-### False positive probability computation
+## False positive probability computation
 
 To compute the false positive probability, `false_positive_proba` only needs to model the behavior of one Bloom filter or one set of smaller cascaded Bloom filters under a variable load. Indeed, if *n* elements are inserted at random into m filters, the average number of elements in a filter set is *a = n/m* and the probability to have *u* elements in the filter is
 
