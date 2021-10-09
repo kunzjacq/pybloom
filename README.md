@@ -2,7 +2,7 @@
 
 This project is based on ideas from the publication '[Cache-, Hash- and Space-Efficient Bloom Filters](http://algo2.iti.kit.edu/documents/cacheefficientbloomfilters-jea.pdf)', by F. Putze, P. Sanders and J. Singler.
 
-Bloom filters enable to check whether elements belong to a set, with no false negatives and a computable false positive (f.p.) probability; see for instance https://en.wikipedia.org/wiki/Bloom_filter. For a given f.p. probability, Bloom filters storage requirements as a function of the set size are modest: the storage per elements in bits, *a*, and the f.p. probability, *p*, are related by *-ln(p) ≈ a × ln(2)<sup>2</sup> ≈ 0.5 × a*. However, testing an element in a Bloom filter requires several memory reads at independent, pseudorandom positions in the structure. This makes Bloom filter implementations rather cache-unfriendly and slow. Alternate structures where memory accesses are grouped together, at the expense of the memory requirements or f.p. probability, are therefore desirable for the uses where speed matters most.
+Bloom filters enable to check whether elements belong to a set, with no false negatives and a computable false positive (f.p.) probability; see for instance [their Wikipedia page](https://en.wikipedia.org/wiki/Bloom_filter). For a given f.p. probability, Bloom filters storage requirements as a function of the set size are modest: the storage per elements in bits, *a*, and the f.p. probability, *p*, are related by *-ln(p) ≈ a × ln(2)<sup>2</sup> ≈ 0.5 × a*. However, testing an element in a Bloom filter requires several memory reads at independent, pseudorandom positions in the structure. This makes Bloom filter implementations rather cache-unfriendly and slow. Alternate structures where memory accesses are grouped together, at the expense of the memory requirements or f.p. probability, are therefore desirable for the uses where speed matters most.
 
 ## Better memory locality with a hash table of Bloom filters
 
@@ -41,7 +41,7 @@ A cascade of 4 16-bit filters, each with 2<sup>8</sup> masks of hamming weight 3
 
 This structure requires 4 × 8 = 32 hashed bits per value for mask selection; the mask table is composed of 2<sup>8</sup> 16-bit words, i.e. 2<sup>10</sup> bytes. The same table can be reused for the different cascaded filters, as long as the randomness used for mask selection in each filter is different.
 
-`false_positive_proba` has an optional parameter *F* that defines the maximum number of values in the filter that is considered during computations. This maximum number *U* is defined as *a + F * s*, where *s = a<sup>1/2</sup>* is the loading standard deviation. Values larger than *U* are not taken into account in the f.p. probability computation. *F* defaults to 10 which should always be equivalent to infinity for practical purposes.
+`false_positive_proba` has an optional parameter *F* that defines the maximum number of values in the filter that is considered during computations. This maximum number *U* is defined as *a + F × s*, where *s = a<sup>1/2</sup>* is the loading standard deviation. Values larger than *U* are not taken into account in the f.p. probability computation. *F* defaults to 10 which should always be equivalent to infinity for practical purposes.
 
 An optimiser is provided to find the structure with lowest false positive probability under constraints.
 
@@ -133,6 +133,6 @@ To compute the false positive probability, `false_positive_proba` only needs to 
 
 *p = binomial(n,u) (1/m)<sup>u</sup> (1-1/m)<sup>(n-u)</sup>.*
 
-For large *n*, *log(p)* tends to *-log(u!) - a + u * log(a)*.
+For large *n*, *log(p)* tends to *-log(u!) - a + u × log(a)*.
 
 More precisely, this is the limit of the log-probability that there are *u* values in a filter after *n* elements are inserted at random into *m* filters when *n* tends to infinity and *n/m = a* is constant. This is obtained by a Taylor development of *log(p)* starting with the exact formula above, when *n* tends to infinity and *m = a × n*.
